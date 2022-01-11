@@ -13,7 +13,7 @@ import torch
 # -- Generate the namedtuple for the output
 SPFitem = NamedTuple('SPFitem', 
     [
-        ('C', torch.Tensor), ('R', Optional[torch.Tensor]), ('L', Optional[torch.Tensor])
+        ('C', torch.Tensor), ('R', torch.Tensor), ('L', torch.Tensor)
     ]
 )
 
@@ -84,7 +84,7 @@ class SPFactory:
         # Normalise the spectral functions
         R_buffer = (6.0 / (R_buffer * self.kernel.dw).sum(dim=1).view(params.shape[0], 1)) * R_buffer
 
-        # Compute the decomposition of the kernel
+        # Compute the decomposition of the spectral functions
         U_buffer = torch.linalg.svd(R_buffer, full_matrices=False).Vh[:Ns, :].cpu()
 
         # Compute the correlation functions

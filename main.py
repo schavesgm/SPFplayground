@@ -31,6 +31,9 @@ class Model(BaseModel):
 
 if __name__ == '__main__':
 
+    # Set the seed to be constant
+    torch.manual_seed(916650397)
+
     # Generate the parameters
     param_A = Parameter('A', 0.1000, 1.0000)
     param_W = Parameter('W', 0.0100, 0.1000)
@@ -40,10 +43,10 @@ if __name__ == '__main__':
     gauss = GaussianAnsatz(param_A, param_M, param_W)
 
     # Generate the kernel
-    kernel = NRQCDKernel(48, 1000, [0.0, 8.0])
+    kernel = NRQCDKernel(64, 1000, [0.0, 5.0])
 
     # Generate the factory
-    dataset =  SPFactory([gauss for _ in range(10)], kernel)
+    dataset = SPFactory([gauss for _ in range(5)], kernel)
 
     # Generate the data
     dataset.generate_data(10000, 64)
@@ -65,7 +68,7 @@ if __name__ == '__main__':
     # Normalise the data
     dataset.C, dataset.L = (dataset.C - TC) / SC, (dataset.L - TL) / SL
 
-    for epoch in range(500):
+    for epoch in range(100):
 
         # Track the total loss
         epoch_loss = []
@@ -80,10 +83,6 @@ if __name__ == '__main__':
 
             # Compute the model prediction
             L_pred = model(C_data)
-
-            # Transform the data to natural units
-            L_data = SL * L_data + TL
-            L_pred = SL * L_pred + TL
 
             # Compute the loss function
             loss = (L_pred - L_data).pow(2).mean()
