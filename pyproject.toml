@@ -6,6 +6,9 @@ authors = ["Sergio Chaves García-Mascaraque <sergiozteskate@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
+numpy = "^1.22.0"
+matplotlib = "^3.5.1"
+torch = "^1.10.1"
 
 [tool.poetry.dev-dependencies]
 
