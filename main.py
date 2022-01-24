@@ -1,3 +1,6 @@
+import os
+import time
+
 # -- Load some classes to produce spectral functions
 from recan.factory import Parameter
 from recan.factory import GaussianAnsatz
@@ -5,6 +8,7 @@ from recan.factory import NRQCDKernel
 
 # -- Load the BaseModel class
 from recan.models import BaseModel
+from recan.models import ResidualNet
 
 # -- Load the factory isolated module
 from factory import SPFactory
@@ -12,27 +16,33 @@ from factory import SPFactory
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use('Agg')
+plt.style.use(['science', 'ieee', 'monospace'])
 
 class Model(BaseModel):
 
     def __init__(self, input_size: int, output_size: int, name: str = ''):
+
         super().__init__(name)
-        self.architecture = nn.Sequential(
-            nn.Linear(input_size, 500), nn.ReLU(), nn.BatchNorm1d(500), nn.Dropout(0.1),
-            nn.Linear(500, 500), nn.ReLU(), nn.BatchNorm1d(500), nn.Dropout(0.1),
-            nn.Linear(500, 500), nn.ReLU(), nn.BatchNorm1d(500), nn.Dropout(0.1),
-            nn.Linear(500, 500), nn.ReLU(), nn.BatchNorm1d(500), nn.Dropout(0.1),
-            nn.Linear(500, 500), nn.ReLU(), nn.BatchNorm1d(500), nn.Dropout(0.1),
-            nn.Linear(500, 500), nn.ReLU(), nn.BatchNorm1d(500), nn.Dropout(0.1),
-            nn.Linear(500, 500), nn.ReLU(), nn.BatchNorm1d(500), nn.Dropout(0.1),
-            nn.Linear(500, 500), nn.ReLU(), nn.BatchNorm1d(500), nn.Dropout(0.1),
-            nn.Linear(500, output_size)
+
+        # Generate the architecture
+        self.arch = nn.Sequential(
+            nn.Linear(input_size, 512), nn.ReLU(),
+            nn.Linear(512, 512), nn.ReLU(),
+            nn.Linear(512, 512), nn.ReLU(),
+            nn.Linear(512, 512), nn.ReLU(),
+            nn.Linear(512, output_size)
         )
 
 if __name__ == '__main__':
 
     # Set the seed to be constant
     torch.manual_seed(916650397)
+
+    # Number of peaks to be used in any spectral function
+    num_peaks = 1
 
     # Generate the parameters
     param_A = Parameter('A', 0.1000, 1.0000)
@@ -46,56 +56,123 @@ if __name__ == '__main__':
     kernel = NRQCDKernel(64, 1000, [0.0, 5.0])
 
     # Generate the factory
-    dataset = SPFactory([gauss for _ in range(5)], kernel)
+    dataset = SPFactory([gauss for _ in range(num_peaks)], kernel)
 
     # Generate the data
-    dataset.generate_data(10000, 64)
+    dataset.generate_data(50000, 64)
 
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
 
     # Generate a model to train
-    model = Model(kernel.Nt, dataset.Ns).cuda()
+    model = Model(dataset.Nt, dataset.Ns).cuda()
 
     # Optimiser and learning rate scheduler
-    optim = torch.optim.Adam(model.parameters(), lr=0.1)
-    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim)
+    optim = torch.optim.Adam(model.parameters(), lr=0.01)
+    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5)
 
-    # Transform the dataset to 0-1
-    SC, TC = dataset.C.max() - dataset.C.min(), dataset.C.min()
-    SL, TL = dataset.L.max() - dataset.L.min(), dataset.L.min()
+    # Get a random example
+    ex = torch.randint(0, dataset.Nb, (1, ))
 
-    # Normalise the data
-    dataset.C, dataset.L = (dataset.C - TC) / SC, (dataset.L - TL) / SL
+    # Scalers for each loss function
+    scale_L, scale_C, scale_R = 1.0, 100, 1.0
 
-    for epoch in range(100):
+    # Get the transformers for the input-output data
+    # SL, TL = dataset.L.max() - dataset.L.min(), dataset.L.min()
 
-        # Track the total loss
-        epoch_loss = []
+    # Train the model for different number of epochs
+    for epoch in range(500):
 
-        for nb, (C_data, L_data) in enumerate(loader):
+        # Make the model trainable
+        model.train()
+
+        # Track the total loss and save the initial time
+        epoch_loss, start = [], time.time()
+
+        # Iterate through all minibatches
+        for nb, data in enumerate(loader):
 
             # Set the gradients to zero
             optim.zero_grad()
 
             # Move the data to the GPU
-            C_data, L_data = C_data.cuda(), L_data.cuda()
+            C_data, R_data, L_data = (i.flatten(1, -1).cuda() for i in data)
 
-            # Compute the model prediction
-            L_pred = model(C_data)
+            # Compute the prediction of the network
+            preds = dataset.reconstruct(model(C_data))
 
-            # Compute the loss function
-            loss = (L_pred - L_data).pow(2).mean()
+            # Get a reference to each predicted object
+            C_pred, R_pred, L_pred = preds
 
-            # Append the loss
+            # Compute the loss functions
+            loss_L = scale_L * (L_pred - L_data).pow(2).mean()
+            loss_C = scale_C * (C_pred - C_data).pow(2).mean()
+            loss_R = scale_R * (R_pred - R_data).pow(2).mean()
+
+            # Compute the total loss
+            loss = loss_L # + loss_C + loss_R
+
+            # Append the loss to the control tensor
             epoch_loss += [loss]
-
-            if (nb + 1) % 10 == 0:
-                print(f'{nb + 1}: loss={loss:.6f}')
 
             # Backward pass and optimiser step
             loss.backward(), optim.step()
 
         epoch_loss = torch.tensor(epoch_loss)
         sched.step(epoch_loss.median())
-        print(f'Epoch {epoch + 1}: loss_med={epoch_loss.median():.6f}')
+
+        # Get the learning rate
+        lr = optim.param_groups[0]['lr']
+
+        print(f'Epoch {epoch + 1}: loss_med={epoch_loss.median():.6f}, lr={lr:.6f}, eta={time.time() - start}')
+
+        if (epoch + 1) % 10 == 0:
+
+            # Generate the prediction of the model
+            with torch.no_grad():
+
+                # Set the network in evaluation mode
+                model.eval()
+
+                # Figure to plot the data
+                fig = plt.figure(figsize=(6, 4))
+
+                # Add some axis to the figure
+                axis = [fig.add_subplot(1, 3, i) for i in range(1, 4)]
+
+                # References to the axis
+                aL, aR, aC = axis
+
+                # Set some parameters in each of the axis
+                aL.set(xlabel=r'$n_s$', ylabel=r'$L(n_s)$')
+                aR.set(xlabel=r'$\omega$', ylabel=r'$\rho(\omega)$')
+                aC.set(xlabel=r'$\tau$', ylabel=r'$C(\tau)$', yscale='log')
+
+                # Get the label coefficients from the dataset
+                L_data = dataset.L[ex, :].view(1, dataset.Ns)
+
+                # Generate the label objects
+                data = dataset.reconstruct(L_data.cpu())
+
+                # Compute the predicted objects
+                pred = dataset.reconstruct(model(data.C.cuda()).cpu())
+
+                # Plot the coefficients
+                aL.plot(data.L.flatten(), color='blue')
+                aL.plot(pred.L.flatten(), color='red')
+
+                # Plot the spectral functions
+                aR.plot(kernel.omega, data.R.flatten(), color='blue')
+                aR.plot(kernel.omega, pred.R.flatten(), color='red')
+
+                # Plot the correlation functions
+                aC.plot(kernel.tau, data.C.flatten(), color='blue')
+                aC.plot(kernel.tau, pred.C.flatten(), color='red')
+
+                # Save the data
+                if not os.path.exists('./figures'): os.makedirs('./figures')
+                fig.tight_layout()
+                fig.savefig(f'./figures/epoch_{epoch + 1}.pdf')
+
+                # Close the figures
+                plt.cla(), plt.clf(), plt.close(fig)
