@@ -34,7 +34,7 @@ class SPFactory:
             raise AttributeError('Data not found, please, generate it.')
         return self.L.shape[0]
 
-    def __getitem__(self, idx) -> torch.Tensor:
+    def __getitem__(self, idx) -> SPFitem:
         return self.reconstruct(self.L[idx, :])
     # -- }}}
 
@@ -45,7 +45,7 @@ class SPFactory:
         params = self.scale * torch.rand((Nb, self.num_parameters)) + self.trans
 
         # Reconstruct the spectral functions using the parameters
-        R_buffer = torch.stack([self.rec_function(param) for param in params]) + 1e-6
+        R_buffer = torch.stack([self.rec_function(param) for param in params]) + 1e-10
 
         # Normalise the spectral functions
         R_buffer = (self.norm / (R_buffer * self.kernel.dw).sum(dim=1).view(params.shape[0], 1)) * R_buffer
@@ -68,7 +68,7 @@ class SPFactory:
         coeffs = coeffs if coeffs.ndim == 2 else coeffs.view(1, self.Ns)
 
         # Compute the spectral function by composing on the basis set
-        R_buffer = coeffs @ self.U.to(coeffs.device)
+        R_buffer = coeffs @ self.U.to(coeffs.device) + 1e-10
 
         # Normalise the spectral functions
         R_buffer = (self.norm / (R_buffer * self.kernel.dw).sum(dim=1).view(coeffs.shape[0], 1)) * R_buffer
@@ -113,9 +113,7 @@ class SPFactory:
         # Generate the actual function that will do the reconstruction
         def actual_function(params: torch.Tensor):
             """ Function that returns the actual reconstructed R from a set of parameters. """
-            return sum(
-                f(self.kernel.omega, params[s]) for f, s in zip(functions, limits)
-            )
+            return sum(f(self.kernel.omega, params[s]) for f, s in zip(functions, limits))
 
         return actual_function
     # -- }}}
