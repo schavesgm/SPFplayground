@@ -8,7 +8,7 @@ from recan.factory import NRQCDKernel
 
 # -- Load the BaseModel class
 from recan.models import BaseModel
-from recan.models import ResidualNet
+# from recan.models import ResidualNet
 
 # -- Load the factory isolated module
 from factory import SPFactory
@@ -21,13 +21,17 @@ import matplotlib
 matplotlib.use('Agg')
 plt.style.use(['science', 'ieee', 'monospace'])
 
+# TODO: Seems that loss_R and loss_C do not change anything.
+# TODO: Try normalising the data using mean and standard deviation -- Input
+# TODO: If previous thing works, then use batch norm in the initial layers
+
 class Model(BaseModel):
 
     def __init__(self, input_size: int, output_size: int, name: str = ''):
 
         super().__init__(name)
 
-        # Generate the architecture
+        # Generate the architecture: This one works at least for 2peaks only
         self.arch = nn.Sequential(
             nn.Linear(input_size, 512), nn.ReLU(),
             nn.Linear(512, 512), nn.ReLU(),
@@ -42,7 +46,7 @@ if __name__ == '__main__':
     torch.manual_seed(916650397)
 
     # Number of peaks to be used in any spectral function
-    num_peaks = 1
+    num_peaks = 2
 
     # Generate the parameters
     param_A = Parameter('A', 0.1000, 1.0000)
@@ -58,8 +62,8 @@ if __name__ == '__main__':
     # Generate the factory
     dataset = SPFactory([gauss for _ in range(num_peaks)], kernel)
 
-    # Generate the data
-    dataset.generate_data(50000, 64)
+    # Generate the data: Increased from 64 to 128, check performance
+    dataset.generate_data(100000, 128)
 
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
@@ -77,9 +81,6 @@ if __name__ == '__main__':
     # Scalers for each loss function
     scale_L, scale_C, scale_R = 1.0, 100, 1.0
 
-    # Get the transformers for the input-output data
-    # SL, TL = dataset.L.max() - dataset.L.min(), dataset.L.min()
-
     # Train the model for different number of epochs
     for epoch in range(500):
 
@@ -95,7 +96,7 @@ if __name__ == '__main__':
             # Set the gradients to zero
             optim.zero_grad()
 
-            # Move the data to the GPU
+            # Move the data to the GPU.
             C_data, R_data, L_data = (i.flatten(1, -1).cuda() for i in data)
 
             # Compute the prediction of the network
