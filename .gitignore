@@ -1,2 +1,6 @@
 # Ignore cache files
 __pycache__
+
+# Ignore figures folder
+figures
+
