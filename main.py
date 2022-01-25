@@ -22,10 +22,12 @@ matplotlib.use('Agg')
 plt.style.use(['science', 'ieee', 'monospace'])
 
 # TODO: Seems that loss_R and loss_C do not change anything.
-# TODO: Try normalising the data using mean and standard deviation -- Input
-# TODO: If previous thing works, then use batch norm in the initial layers
+# TODO: Add some dropout to check if it enhances training -- Regularisation
 
 class Model(BaseModel):
+
+    # CHANGES:
+    # -- Added Dropout with p=0.1 after all ReLU -> Check performance?
 
     def __init__(self, input_size: int, output_size: int, name: str = ''):
 
@@ -63,7 +65,11 @@ if __name__ == '__main__':
     dataset = SPFactory([gauss for _ in range(num_peaks)], kernel)
 
     # Generate the data: Increased from 64 to 128, check performance
-    dataset.generate_data(100000, 128)
+    data = dataset.generate_data(100000, 128)
+
+    # Get the normalisation constants for the input and label
+    SC, TC = data.C.std(), data.C.mean()
+    SL, TL = data.L.std(), data.L.mean()
 
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
@@ -97,21 +103,16 @@ if __name__ == '__main__':
             optim.zero_grad()
 
             # Move the data to the GPU.
-            C_data, R_data, L_data = (i.flatten(1, -1).cuda() for i in data)
+            C_data, L_data = data.C.flatten(1, -1).cuda(), data.L.flatten(1, -1).cuda()
 
-            # Compute the prediction of the network
-            preds = dataset.reconstruct(model(C_data))
+            # Normalise the input and label data
+            C_data, L_data = (C_data - TC) / SC, (L_data - TL) / SL
 
-            # Get a reference to each predicted object
-            C_pred, R_pred, L_pred = preds
+            # Compute the prediction of the network -> The output will be normalised
+            L_pred = model(C_data)
 
             # Compute the loss functions
-            loss_L = scale_L * (L_pred - L_data).pow(2).mean()
-            loss_C = scale_C * (C_pred - C_data).pow(2).mean()
-            loss_R = scale_R * (R_pred - R_data).pow(2).mean()
-
-            # Compute the total loss
-            loss = loss_L # + loss_C + loss_R
+            loss = (L_pred - L_data).pow(2).mean()
 
             # Append the loss to the control tensor
             epoch_loss += [loss]
@@ -155,8 +156,11 @@ if __name__ == '__main__':
                 # Generate the label objects
                 data = dataset.reconstruct(L_data.cpu())
 
-                # Compute the predicted objects
-                pred = dataset.reconstruct(model(data.C.cuda()).cpu())
+                # Compute the predicted coefficients
+                L_pred = SL * model((data.C.cuda() - TC) / SC).cpu() + TL
+
+                # Reconstruct the predicted objects -> Un-normalised output
+                pred = dataset.reconstruct(L_pred)
 
                 # Plot the coefficients
                 aL.plot(data.L.flatten(), color='blue')
