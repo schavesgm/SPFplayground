@@ -29,7 +29,7 @@ class Model(BaseModel):
     # CHANGES:
     # -- Added Dropout with p=0.1 after all ReLU -> Check performance?
 
-    def __init__(self, input_size: int, output_size: int, name: str = ''):
+    def __init__(self, input_size: int, output_size: int, name: str = 'Model'):
 
         super().__init__(name)
 
@@ -41,6 +41,21 @@ class Model(BaseModel):
             nn.Linear(512, 512), nn.ReLU(),
             nn.Linear(512, output_size)
         )
+
+class StandardScaler:
+    """ StandardScaler object that scales and descales tensors to standard normal. """
+
+    def __init__(self, data: torch.Tensor):
+        # Compute the mean and the standard deviation of the data provided
+        self.mu, self.sigma = data.mean(), data.std()
+
+    def scale(self, data: torch.Tensor) -> torch.Tensor:
+        """ Transform data: X -> ZX = (X - mu) / sigma. """
+        return (data - self.mu) / self.sigma
+
+    def descale(self, data: torch.Tensor) -> torch.Tensor:
+        """ Transform data: ZX -> X = (ZX * sigma) + mu. """
+        return data * self.sigma + self.mu
 
 if __name__ == '__main__':
 
@@ -67,9 +82,8 @@ if __name__ == '__main__':
     # Generate the data: Increased from 64 to 128, check performance
     data = dataset.generate_data(100000, 128)
 
-    # Get the normalisation constants for the input and label
-    SC, TC = data.C.std(), data.C.mean()
-    SL, TL = data.L.std(), data.L.mean()
+    # Generate two scalers for the data
+    C_scaler, L_scaler = StandardScaler(data.C), StandardScaler(data.L)
 
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
@@ -106,7 +120,7 @@ if __name__ == '__main__':
             C_data, L_data = data.C.flatten(1, -1).cuda(), data.L.flatten(1, -1).cuda()
 
             # Normalise the input and label data
-            C_data, L_data = (C_data - TC) / SC, (L_data - TL) / SL
+            C_data, L_data = C_scaler.scale(C_data), L_scaler.scale(L_data)
 
             # Compute the prediction of the network -> The output will be normalised
             L_pred = model(C_data)
@@ -157,7 +171,7 @@ if __name__ == '__main__':
                 data = dataset.reconstruct(L_data.cpu())
 
                 # Compute the predicted coefficients
-                L_pred = SL * model((data.C.cuda() - TC) / SC).cpu() + TL
+                L_pred = L_scaler.descale(model(C_scaler.scale(data.C.cuda())))
 
                 # Reconstruct the predicted objects -> Un-normalised output
                 pred = dataset.reconstruct(L_pred)
@@ -174,10 +188,12 @@ if __name__ == '__main__':
                 aC.plot(kernel.tau, data.C.flatten(), color='blue')
                 aC.plot(kernel.tau, pred.C.flatten(), color='red')
 
-                # Save the data
-                if not os.path.exists('./figures'): os.makedirs('./figures')
                 fig.tight_layout()
-                fig.savefig(f'./figures/epoch_{epoch + 1}.pdf')
+
+                # Save the data in the corresponding folder
+                folder = f'./figures/{model.name}/p{num_peaks}_s{dataset.Ns}_b{dataset.Nb}'
+                if not os.path.exists(folder): os.makedirs(folder)
+                fig.savefig(os.path.join(folder, f'epoch_{epoch + 1}.pdf'))
 
                 # Close the figures
                 plt.cla(), plt.clf(), plt.close(fig)
