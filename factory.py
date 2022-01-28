@@ -34,8 +34,8 @@ class SPFactory:
             raise AttributeError('Data not found, please, generate it.')
         return self.L.shape[0]
 
-    def __getitem__(self, idx) -> SPFitem:
-        return self.reconstruct(self.L[idx, :])
+    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.C[idx, :], self.L[idx, :]
     # -- }}}
 
     def generate_data(self, Nb: int, Ns: int) -> SPFitem:
@@ -56,8 +56,8 @@ class SPFactory:
         # Compute the decomposition of the data
         U_buffer = torch.linalg.svd(R_buffer, full_matrices=False).Vh[:Ns, :].cpu()
 
-        # Save the data in memory, we only need L and U
-        self.L, self.U = (R_buffer @ U_buffer.T), U_buffer
+        # Save the needed data in memory: L, C and U
+        self.L, self.C, self.U = (R_buffer @ U_buffer.T), C_buffer, U_buffer
 
         return SPFitem(C=C_buffer, R=R_buffer, L=self.L)
 

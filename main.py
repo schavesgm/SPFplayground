@@ -21,8 +21,7 @@ import matplotlib
 matplotlib.use('Agg')
 plt.style.use(['science', 'ieee', 'monospace'])
 
-# TODO: Seems that loss_R and loss_C do not change anything.
-# TODO: Add some dropout to check if it enhances training -- Regularisation
+# TODO: Add several examples to plot instead of just one.
 
 class Model(BaseModel):
 
@@ -43,7 +42,7 @@ class Model(BaseModel):
         )
 
 class StandardScaler:
-    """ StandardScaler object that scales and descales tensors to standard normal. """
+    """ StandardScaler class that scales and descales tensors using standard normal. """
 
     def __init__(self, data: torch.Tensor):
         # Compute the mean and the standard deviation of the data provided
@@ -95,8 +94,8 @@ if __name__ == '__main__':
     optim = torch.optim.Adam(model.parameters(), lr=0.01)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5)
 
-    # Get a random example
-    ex = torch.randint(0, dataset.Nb, (1, ))
+    # Get some random examples
+    ex = torch.randint(0, dataset.Nb, (4, ))
 
     # Scalers for each loss function
     scale_L, scale_C, scale_R = 1.0, 100, 1.0
@@ -111,16 +110,13 @@ if __name__ == '__main__':
         epoch_loss, start = [], time.time()
 
         # Iterate through all minibatches
-        for nb, data in enumerate(loader):
+        for nb, (C_data, L_data) in enumerate(loader):
 
             # Set the gradients to zero
             optim.zero_grad()
 
-            # Move the data to the GPU.
-            C_data, L_data = data.C.flatten(1, -1).cuda(), data.L.flatten(1, -1).cuda()
-
-            # Normalise the input and label data
-            C_data, L_data = C_scaler.scale(C_data), L_scaler.scale(L_data)
+            # Normalise the input and label data and move to the GPU
+            C_data, L_data = C_scaler.scale(C_data).cuda(), L_scaler.scale(L_data).cuda()
 
             # Compute the prediction of the network -> The output will be normalised
             L_pred = model(C_data)
@@ -150,44 +146,45 @@ if __name__ == '__main__':
                 # Set the network in evaluation mode
                 model.eval()
 
-                # Figure to plot the data
-                fig = plt.figure(figsize=(6, 4))
+                # Generate a figure to plot the data
+                fig = plt.figure(figsize=(10, 8))
 
-                # Add some axis to the figure
-                axis = [fig.add_subplot(1, 3, i) for i in range(1, 4)]
+                # Add several axis to the figure
+                axis = [fig.add_subplot(ex.shape[0], 3, i) for i in range(1, 3 * ex.shape[0] + 1)]
 
-                # References to the axis
-                aL, aR, aC = axis
+                # Get the label coefficients and the correlation functions
+                L_data, C_data = dataset.L[ex, :], dataset.C[ex, :]
 
-                # Set some parameters in each of the axis
-                aL.set(xlabel=r'$n_s$', ylabel=r'$L(n_s)$')
-                aR.set(xlabel=r'$\omega$', ylabel=r'$\rho(\omega)$')
-                aC.set(xlabel=r'$\tau$', ylabel=r'$C(\tau)$', yscale='log')
+                # Compute the predicted coefficients from the scaled correlation functions
+                L_pred = L_scaler.descale(model(C_scaler.scale(C_data.cuda()))).cpu()
 
-                # Get the label coefficients from the dataset
-                L_data = dataset.L[ex, :].view(1, dataset.Ns)
+                # Generate the label and the predicted objects
+                data, pred = dataset.reconstruct(L_data), dataset.reconstruct(L_pred)
 
-                # Generate the label objects
-                data = dataset.reconstruct(L_data.cpu())
+                # Iterate through all the examples to plot them
+                for e in range(ex.shape[0]):
 
-                # Compute the predicted coefficients
-                L_pred = L_scaler.descale(model(C_scaler.scale(data.C.cuda())))
+                    # Select the corresponding axis
+                    aL, aR, aC = axis[3 * e: 3 * (e + 1)]
 
-                # Reconstruct the predicted objects -> Un-normalised output
-                pred = dataset.reconstruct(L_pred)
+                    # Set some parameters in each of the axis
+                    aL.set(xlabel=r'$n_s$', ylabel=r'$L(n_s)$')
+                    aR.set(xlabel=r'$\omega$', ylabel=r'$\rho(\omega)$')
+                    aC.set(xlabel=r'$\tau$', ylabel=r'$C(\tau)$', yscale='log')
 
-                # Plot the coefficients
-                aL.plot(data.L.flatten(), color='blue')
-                aL.plot(pred.L.flatten(), color='red')
+                    # Plot the coefficients
+                    aL.plot(L_data[e, :], color='blue')
+                    aL.plot(L_pred[e, :], color='red')
 
-                # Plot the spectral functions
-                aR.plot(kernel.omega, data.R.flatten(), color='blue')
-                aR.plot(kernel.omega, pred.R.flatten(), color='red')
+                    # Plot the spectral functions
+                    aR.plot(kernel.omega, data.R[e, :], color='blue')
+                    aR.plot(kernel.omega, pred.R[e, :], color='red')
 
-                # Plot the correlation functions
-                aC.plot(kernel.tau, data.C.flatten(), color='blue')
-                aC.plot(kernel.tau, pred.C.flatten(), color='red')
+                    # Plot the correlation functions
+                    aC.plot(kernel.tau, C_data[e, :], color='blue')
+                    aC.plot(kernel.tau, pred.C[e, :], color='red')
 
+                # Make the plot nicer
                 fig.tight_layout()
 
                 # Save the data in the corresponding folder
