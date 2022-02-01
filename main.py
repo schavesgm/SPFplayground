@@ -8,7 +8,7 @@ from recan.factory import NRQCDKernel
 
 # -- Load the BaseModel class
 from recan.models import BaseModel
-# from recan.models import ResidualNet
+from recan.models import ResidualNet
 
 # -- Load the factory isolated module
 from factory import SPFactory
@@ -33,12 +33,29 @@ class Model(BaseModel):
         super().__init__(name)
 
         # Generate the architecture: This one works at least for 2peaks only
+        # self.arch = nn.Sequential(
+        #     nn.Linear(input_size, 512), nn.ReLU(),
+        #     nn.Linear(512, 512), nn.ReLU(),
+        #     nn.Linear(512, 512), nn.ReLU(),
+        #     nn.Linear(512, 512), nn.ReLU(), # -- Added
+        #     nn.Linear(512, 512), nn.ReLU(), # -- Added
+        #     nn.Linear(512, 512), nn.ReLU(),
+        #     nn.Linear(512, output_size)
+        # )
+
         self.arch = nn.Sequential(
-            nn.Linear(input_size, 512), nn.ReLU(),
-            nn.Linear(512, 512), nn.ReLU(),
-            nn.Linear(512, 512), nn.ReLU(),
-            nn.Linear(512, 512), nn.ReLU(),
-            nn.Linear(512, output_size)
+            self.get_block(input_size, 512),
+            self.get_block(512, 1024),
+            self.get_block(1024, 2056),
+            self.get_block(2056, 2056),
+            self.get_block(2056, 1024),
+            self.get_block(1024, 512),
+            nn.Linear(512, output_size),
+        )
+
+    def get_block(self, Li: int, Lo: int, p: float = 0.1) -> nn.Sequential:
+        return nn.Sequential(
+            nn.Linear(Li, Lo), nn.ReLU(), nn.BatchNorm1d(Lo), nn.Dropout(p=p),
         )
 
 class StandardScaler:
@@ -88,11 +105,14 @@ if __name__ == '__main__':
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
 
     # Generate a model to train
-    model = Model(dataset.Nt, dataset.Ns).cuda()
+    # model = Model(dataset.Nt, dataset.Ns).cuda()
+    model = ResidualNet(dataset.Nt, dataset.Ns, name='ResNet').cuda()
 
     # Optimiser and learning rate scheduler
     optim = torch.optim.Adam(model.parameters(), lr=0.01)
-    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5)
+    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optim, patience=20, factor=0.5, min_lr=1e-5, cooldown=10
+    )
 
     # Get some random examples
     ex = torch.randint(0, dataset.Nb, (4, ))
