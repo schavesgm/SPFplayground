@@ -18,8 +18,8 @@ class ResidualBlock(nn.Module):
         # Generate the architecture of the block -- The block does not change L
         self.layers = nn.Sequential(
             nn.Conv1d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
-            nn.BatchNorm1d(out_channels),
             nn.ReLU(inplace=True),
+            nn.BatchNorm1d(out_channels),
             nn.Dropout(0.1),
             nn.Conv1d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm1d(out_channels),
@@ -73,19 +73,13 @@ class ResidualNet(BaseModel):
         super().__init__(name)
 
         # First, change the input size to 224 pixels -- Original implementation
-        self.augment = nn.Sequential(
-            nn.Linear(input_size, 224), 
-            nn.BatchNorm1d(224),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.1),
-            nn.Unflatten(1, (1, 224)),
-        )
+        self.augment = nn.Unflatten(1, (1, input_size))
 
         # Now, do the first convolution
         self.first_block = nn.Sequential(
             nn.Conv1d(1, 64, kernel_size=7, stride=2, padding=3, bias=False),
-            nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
+            nn.BatchNorm1d(64),
             nn.Dropout(0.1),
             nn.AvgPool1d(kernel_size=3, stride=2, padding=1)
         )
@@ -102,9 +96,8 @@ class ResidualNet(BaseModel):
         self.output = nn.Sequential(
             nn.AdaptiveAvgPool1d((1,)),
             nn.Flatten(1, -1),
-            nn.Linear(512, 1000),
-            nn.ReLU(),
-            nn.Linear(1000, output_size),
+            nn.ReLU(inplace=True),
+            nn.Linear(512, output_size),
         )
 
 if __name__ == '__main__':
