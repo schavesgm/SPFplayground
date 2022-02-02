@@ -19,7 +19,11 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 matplotlib.use('Agg')
-plt.style.use(['science', 'ieee', 'monospace'])
+
+try:
+    plt.style.use(['science', 'ieee', 'monospace'])
+except OSError:
+    plt.style.use(['science', 'ieee'])
 
 # TODO: Add several examples to plot instead of just one.
 
@@ -120,7 +124,11 @@ if __name__ == '__main__':
         # Get the learning rate
         lr = optim.param_groups[0]['lr']
 
-        print(f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, lr={lr:.6f}, eta={time.time() - start}')
+        print(
+            f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, '
+            f'lr={lr:.6f}, eta={time.time() - start}',
+            flush=True
+        )
 
         if (epoch + 1) % 10 == 0:
 
