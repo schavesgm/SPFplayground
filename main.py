@@ -21,21 +21,6 @@ import matplotlib
 # -- Use this plotting backend to avoid memory leaks
 matplotlib.use('Agg')
 
-class StandardScaler:
-    """ StandardScaler class that scales and descales tensors using standard normal. """
-
-    def __init__(self, data: torch.Tensor):
-        # Compute the mean and the standard deviation of the data provided
-        self.mu, self.sigma = data.mean(), data.std()
-
-    def scale(self, data: torch.Tensor) -> torch.Tensor:
-        """ Transform data: X -> ZX = (X - mu) / sigma. """
-        return (data - self.mu) / self.sigma
-
-    def descale(self, data: torch.Tensor) -> torch.Tensor:
-        """ Transform data: ZX -> X = (ZX * sigma) + mu. """
-        return data * self.sigma + self.mu
-
 def parse_arguments() -> argparse.Namespace:
     """ Parse some command line arguments. """
 
@@ -82,9 +67,6 @@ if __name__ == '__main__':
     # Generate the data: Increased from 64 to 128, check performance
     data = dataset.generate_data(args.Nb, args.Ns)
 
-    # Generate two scalers for the data
-    C_scaler, L_scaler = StandardScaler(data.C.log()), StandardScaler(data.L)
-
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
 
@@ -123,9 +105,9 @@ if __name__ == '__main__':
             optim.zero_grad()
 
             # Normalise the input and label data and move to the GPU
-            C_data, L_data = C_scaler.scale(C_data.log()).cuda(), L_scaler.scale(L_data).cuda()
+            C_data, L_data = C_data.cuda().log(), L_data.cuda()
 
-            # Compute the prediction of the network -> The output will be normalised
+            # Compute the prediction of the network
             L_pred = model(C_data)
 
             # Compute the loss functions
@@ -171,7 +153,7 @@ if __name__ == '__main__':
                 L_data, C_data = dataset.L[ex, :], dataset.C[ex, :]
 
                 # Compute the predicted coefficients from the scaled correlation functions
-                L_pred = L_scaler.descale(model(C_scaler.scale(C_data.cuda().log()))).cpu()
+                L_pred = model(C_data.cuda().log()).cpu()
 
                 # Generate the label and the predicted objects
                 data, pred = dataset.reconstruct(L_data), dataset.reconstruct(L_pred)
