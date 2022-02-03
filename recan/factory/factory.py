@@ -66,7 +66,7 @@ class SPFactory:
         params = self.scale * torch.rand((Nb, self.num_parameters)) + self.trans
 
         # Reconstruct the spectral functions using the parameters
-        R_buffer = torch.stack([self.__get_reconstruct(param) for param in params])
+        R_buffer = torch.stack([self.__get_reconstruct(param) for param in params]) + 1e-10
 
         # Normalise the spectral functions
         R_buffer = (self.norm / (R_buffer * self.kernel.dw).sum(dim=1).view(params.shape[0], 1)) * R_buffer
@@ -103,7 +103,7 @@ class SPFactory:
         coeffs = coeffs if coeffs.ndim == 2 else coeffs.view(1, self.Ns)
 
         # Compute the spectral function by composing on the basis set
-        R_buffer = coeffs @ self.U.to(coeffs.device)
+        R_buffer = coeffs @ self.U.to(coeffs.device) + 1e-10
 
         # Normalise the spectral functions
         R_buffer = (self.norm / (R_buffer * self.kernel.dw).sum(dim=1).view(coeffs.shape[0], 1)) * R_buffer
