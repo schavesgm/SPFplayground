@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "recan"
 version = "0.1.0"
-description = ""
+description = "Playground for spectral reconstruction with deep learning"
 authors = ["Sergio Chaves García-Mascaraque <sergiozteskate@gmail.com>"]
 
 [tool.poetry.dependencies]
