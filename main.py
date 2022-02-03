@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
     # Optimiser and learning rate scheduler
     optim = torch.optim.Adam(model.parameters(), lr=0.01)
-    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=20, factor=0.5, min_lr=1e-5, cooldown=10)
+    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5, cooldown=5)
 
     # Get some random examples
     ex = torch.randint(0, dataset.Nb, (4,))
@@ -189,10 +189,7 @@ if __name__ == '__main__':
 
     # Save the epoch mean loss and the model parameters in a file
     param_path = (run_path / 'params').mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {'loss': epoch_mean_losses, 'model': model.state_dict()}, 
-        run_path / 'params' / 'params.pt'
-    )
+    torch.save({'loss': epoch_mean_losses, 'model': model.state_dict()}, run_path / 'params' / 'params.pt')
 
     # Plot the mean losses into a figure
     fig  = plt.figure(figsize=(6, 4))
