@@ -2,22 +2,18 @@ import os
 import time
 import argparse
 
-from matplotlib import docstring
-
 # -- Load some classes to produce spectral functions
 from recan.factory import Parameter
 from recan.factory import GaussianAnsatz
 from recan.factory import NRQCDKernel
 
 # -- Load the BaseModel class
-from recan.models import BaseModel
 from recan.models import ResidualNet
 
 # -- Load the factory isolated module
 from factory import SPFactory
 
 import torch
-import torch.nn as nn
 import matplotlib.pyplot as plt
 import matplotlib
 
