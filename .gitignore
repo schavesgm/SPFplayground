@@ -1,7 +1,8 @@
 # Ignore cache files
 __pycache__
 
-# Ignore figures folder
+# Ignore runs folder
+runs
 figures
 
 # Ignore some of the server files
