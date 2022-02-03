@@ -4,3 +4,7 @@ __pycache__
 # Ignore figures folder
 figures
 
+# Ignore some of the server files
+run.sh
+stdout.log
+stderr.log
