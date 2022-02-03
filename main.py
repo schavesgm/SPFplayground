@@ -1,5 +1,8 @@
 import os
 import time
+import argparse
+
+from matplotlib import docstring
 
 # -- Load some classes to produce spectral functions
 from recan.factory import Parameter
@@ -18,14 +21,8 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import matplotlib
 
+# -- Use this plotting backend to avoid memory leaks
 matplotlib.use('Agg')
-
-try:
-    plt.style.use(['science', 'ieee', 'monospace'])
-except OSError:
-    plt.style.use(['science', 'ieee'])
-
-# TODO: Add several examples to plot instead of just one.
 
 class StandardScaler:
     """ StandardScaler class that scales and descales tensors using standard normal. """
@@ -42,13 +39,34 @@ class StandardScaler:
         """ Transform data: ZX -> X = (ZX * sigma) + mu. """
         return data * self.sigma + self.mu
 
+def parse_arguments() -> argparse.Namespace:
+    """ Parse some command line arguments. """
+
+    # Generate a parser to take command line arguments
+    parser = argparse.ArgumentParser('SPFplayground')
+
+    # Add some parameters to the parser
+    parser.add_argument('-Nb', type=int, help='Number of training examples.')
+    parser.add_argument('-Ns', type=int, help='Number of coefficients in the expansion')
+    parser.add_argument('-Np', type=int, help='Number of peaks used in each spectral function')
+    parser.add_argument('--epochs', type=int, default=500, help='Number of epochs used at training')
+    parser.add_argument('--server', action='store_true', help='Flag that states that we are running on server')
+    parser.add_argument('--seed', type=int, default=916650397, help='Seed used in the calculation')
+
+    # Parse the command line arguments
+    return parser.parse_args()
+
 if __name__ == '__main__':
 
-    # Set the seed to be constant
-    torch.manual_seed(916650397)
+    # Generate a parser to take command line arguments
+    args = parse_arguments()
 
-    # Number of peaks to be used in any spectral function
-    num_peaks = 2
+    # Load matplotlib style sheets if not on the server
+    if not args.server:
+        plt.style.use(['science', 'ieee', 'monospace'])
+
+    # Set the seed to be constant
+    torch.manual_seed(args.seed)
 
     # Generate the parameters
     param_A = Parameter('A', 0.1000, 1.0000)
@@ -62,10 +80,10 @@ if __name__ == '__main__':
     kernel = NRQCDKernel(64, 1000, [0.0, 8.0])
 
     # Generate the factory
-    dataset = SPFactory([gauss for _ in range(num_peaks)], kernel)
+    dataset = SPFactory([gauss for _ in range(args.Np)], kernel)
 
     # Generate the data: Increased from 64 to 128, check performance
-    data = dataset.generate_data(50000, 64)
+    data = dataset.generate_data(args.Nb, args.Ns)
 
     # Generate two scalers for the data
     C_scaler, L_scaler = StandardScaler(data.C.log()), StandardScaler(data.L)
@@ -78,18 +96,13 @@ if __name__ == '__main__':
 
     # Optimiser and learning rate scheduler
     optim = torch.optim.Adam(model.parameters(), lr=0.01)
-    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optim, patience=20, factor=0.5, min_lr=1e-5, cooldown=10
-    )
+    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=20, factor=0.5, min_lr=1e-5, cooldown=10)
 
     # Get some random examples
     ex = torch.randint(0, dataset.Nb, (4,))
 
-    # Scalers for each loss function
-    scale_L, scale_C, scale_R = 1.0, 100, 1.0
-
     # Train the model for different number of epochs
-    for epoch in range(500):
+    for epoch in range(args.epochs):
 
         # Make the model trainable
         model.train()
@@ -143,6 +156,7 @@ if __name__ == '__main__':
 
                 # Add several axis to the figure
                 axis = [fig.add_subplot(ex.shape[0], 2, i) for i in range(1, 2 * ex.shape[0] + 1)]
+                for ax in axis: ax.grid('#fefefe', alpha=0.6)
 
                 # Get the label coefficients and the correlation functions
                 L_data, C_data = dataset.L[ex, :], dataset.C[ex, :]
@@ -175,7 +189,7 @@ if __name__ == '__main__':
                 fig.tight_layout()
 
                 # Save the data in the corresponding folder
-                folder = f'./figures/{model.name}/p{num_peaks}_s{dataset.Ns}_b{dataset.Nb}'
+                folder = f'./figures/{model.name}/p{args.Np}_s{args.Ns}_b{args.Nb}'
                 if not os.path.exists(folder): os.makedirs(folder)
                 fig.savefig(os.path.join(folder, f'epoch_{epoch + 1}.pdf'))
 
