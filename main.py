@@ -128,7 +128,7 @@ if __name__ == '__main__':
         print(
             f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, '
             f'lr={lr:.6f}, eta={time.time() - start} '
-            f'-- {run_path.name},
+            f'-- {run_path.name}',
             flush=True
         )
 
