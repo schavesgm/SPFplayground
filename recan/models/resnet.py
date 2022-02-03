@@ -72,8 +72,11 @@ class ResidualNet(BaseModel):
         # Initialise the parent module
         super().__init__(name)
 
-        # First, change the input size to 224 pixels -- Original implementation
-        self.augment = nn.Unflatten(1, (1, input_size))
+        # Unflatten the input data and batch normalise it
+        self.augment = nn.Sequential(
+            nn.BatchNorm1d(input_size),
+            nn.Unflatten(1, (1, input_size)),
+        )
 
         # Now, do the first convolution
         self.first_block = nn.Sequential(
