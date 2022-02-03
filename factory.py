@@ -38,7 +38,7 @@ class SPFactory:
         return self.C[idx, :], self.L[idx, :]
     # -- }}}
 
-    def generate_data(self, Nb: int, Ns: int) -> SPFitem:
+    def generate_data(self, Nb: int, Ns: int, use_GPU: bool = True) -> SPFitem:
         """ Generate some random spectral functions and their corresponding correlation functions. """
 
         # Generate some random parameters that define the spectral functions
@@ -54,7 +54,7 @@ class SPFactory:
         C_buffer = ((R_buffer @ self.kernel.kernel.T) * self.kernel.dw)
 
         # Compute the decomposition of the data
-        U_buffer = torch.linalg.svd(R_buffer, full_matrices=False).Vh[:Ns, :].cpu()
+        U_buffer = torch.linalg.svd(R_buffer.cuda() if use_GPU else R_buffer, full_matrices=False).Vh[:Ns, :].cpu()
 
         # Save the needed data in memory: L, C and U
         self.L, self.C, self.U = (R_buffer @ U_buffer.T), C_buffer, U_buffer
