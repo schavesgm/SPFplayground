@@ -1,6 +1,7 @@
 import os
 import time
 import argparse
+from pathlib import Path
 
 # -- Load some classes to produce spectral functions
 from recan.factory import Parameter
@@ -97,6 +98,15 @@ if __name__ == '__main__':
     # Get some random examples
     ex = torch.randint(0, dataset.Nb, (4,))
 
+    # Save all epoch mean losses
+    epoch_mean_losses = []
+
+    # Folder where the run data will be stored
+    run_path = Path(f'./runs/{model.name}/p{args.Np}_s{args.Ns}_b{args.Nb}')
+
+    # Make the path if it does not exist
+    run_path.mkdir(parents=True, exist_ok=True)
+
     # Train the model for different number of epochs
     for epoch in range(args.epochs):
 
@@ -138,6 +148,9 @@ if __name__ == '__main__':
             f'lr={lr:.6f}, eta={time.time() - start}',
             flush=True
         )
+
+        # Append the epoch mean losses
+        epoch_mean_losses += [epoch_loss.mean()]
 
         if (epoch + 1) % 10 == 0:
 
@@ -184,10 +197,26 @@ if __name__ == '__main__':
                 # Make the plot nicer
                 fig.tight_layout()
 
-                # Save the data in the corresponding folder
-                folder = f'./figures/{model.name}/p{args.Np}_s{args.Ns}_b{args.Nb}'
-                if not os.path.exists(folder): os.makedirs(folder)
-                fig.savefig(os.path.join(folder, f'epoch_{epoch + 1}.pdf'))
+                # Make a folder to store the figures
+                (run_path / 'figures').mkdir(parents=True, exist_ok=True)
+                fig.savefig(run_path / 'figures' / f'epoch_{epoch + 1}.pdf')
 
                 # Close the figures
                 plt.cla(), plt.clf(), plt.close(fig)
+
+    # Save the epoch mean loss and the model parameters in a file
+    param_path = (run_path / 'params').mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {'loss': epoch_mean_losses, 'model': model.state_dict()}, 
+        run_path / 'params' / 'params.pt'
+    )
+
+    # Plot the mean losses into a figure
+    fig  = plt.figure(figsize=(6, 4))
+    axis = fig.add_subplot()
+
+    # Set some properties in the axis
+    axis.set(xlabel='epoch', ylabel='loss')
+    axis.grid('#fefefe', alpha=0.6)
+    axis.plot(epoch_mean_losses, color='navy')
+    fig.savefig(run_path / 'params' / 'loss.pdf')
