@@ -1,22 +1,20 @@
+# -- Import some built-in modules
 import os
 import time
 import argparse
 from pathlib import Path
 
-# -- Load some classes to produce spectral functions
+# -- Import some third-party modules
+import torch
+import matplotlib
+import matplotlib.pyplot as plt
+
+# -- Import some user-defined modules
 from recan.factory import Parameter
 from recan.factory import GaussianAnsatz
 from recan.factory import NRQCDKernel
-
-# -- Load the BaseModel class
+from recan.factory import SPFactory
 from recan.models import ResidualNet
-
-# -- Load the factory isolated module
-from factory import SPFactory
-
-import torch
-import matplotlib.pyplot as plt
-import matplotlib
 
 # -- Use this plotting backend to avoid memory leaks
 matplotlib.use('Agg')
