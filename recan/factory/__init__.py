@@ -7,3 +7,6 @@ from .ansatz import GaussianAnsatz
 from .kernel import Kernel
 from .kernel import NRQCDKernel
 
+# -- Load the factory class
+from .factory import SPFactory
+from .factory import SPFitem
