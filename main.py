@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     # Generate the parameters
     param_A = Parameter('A', 0.1000, 1.0000)
-    param_W = Parameter('W', 0.0100, 0.1000)
+    param_W = Parameter('W', 0.0500, 0.1000)
     param_M = Parameter('M', 0.1000, 3.5000)
 
     # Generate the gaussian ansatzs
