@@ -80,6 +80,9 @@ class SPFactory:
         # Save the needed data in memory: L, C and U
         self.L, self.C, self.U = (R_buffer @ U_buffer.T), C_buffer, U_buffer
 
+        # Free up the GPU cache if possible
+        if use_GPU: torch.cuda.empty_cache()
+
         return SPFitem(C=C_buffer, R=R_buffer, L=self.L)
 
     def reconstruct(self, coeffs: torch.Tensor) -> SPFitem:
