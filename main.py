@@ -63,7 +63,7 @@ if __name__ == '__main__':
     dataset = SPFactory([gauss for _ in range(args.Np)], kernel)
 
     # Generate the data: Increased from 64 to 128, check performance
-    data = dataset.generate_data(args.Nb, args.Ns)
+    dataset.generate_data(args.Nb, args.Ns, use_GPU=True)
 
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
