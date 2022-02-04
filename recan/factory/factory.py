@@ -37,12 +37,12 @@ class SPFactory:
         some coefficients [L] and some basis functions [U]. For each spectral function [R], there
         will be a collection of Ns coefficients that holds:
 
-                    R(\omega) = \sum_{s=0}^{Ns} L_s U_s(\omega)self.
+        R(\omega) = \sum_{s=0}^{Ns} L_s U_s(\omega)self.
 
         The correlation function of each spectral function is computed using the spectral
         decomposition on the kernel [K] defined in the object:
 
-                    C(\tau) = \int K(\tau, \omega) R(\omega) d\omega
+        C(\tau) = \int K(\tau, \omega) R(\omega) d\omega
 
         The method stores the data in memory under the fields: L, U and C. The spectral functions
         are not stored to avoid memory consumption.
@@ -83,10 +83,15 @@ class SPFactory:
         return SPFitem(C=C_buffer, R=R_buffer, L=self.L)
 
     def reconstruct(self, coeffs: torch.Tensor) -> SPFitem:
-        """
+        r"""
         Reconstruct a set of spectral functions given some coefficients on the expansion
         in terms of the basis functions [U]. The tensor coeffs can be a collection on Nb 
-        examples or just one example.
+        examples or just one example. The relationship between the spectral functions [R]
+        and the coefficients [L] is:
+
+        R(\omega) = \sum_{s=0}^{N_s} L_s \cdot U_s(\omega),
+
+        where U_s(\omega) are the basis functions.
 
         -- Parameters:
         coeffs: torch.Tensor
@@ -129,19 +134,28 @@ class SPFactory:
     # -- Property methods of the class {{{
     @property
     def num_parameters(self) -> int:
+        """ Number of total parameters defining each spectral function. """
         return sum(a.num_parameters for a in self.ansatzs)
 
     @property
     def Nb(self) -> int:
+        """ Number of examples in the dataset. """
         return self.L.shape[0]
 
     @property
     def Ns(self) -> int:
+        """ Number of coefficients used in the SVD decomposition. """
         return self.L.shape[1]
 
     @property
     def Nt(self) -> int:
+        """ Number of points in the time direction of each correlation function. """
         return self.kernel.Nt
+
+    @property
+    def Nw(self) -> int:
+        """ Number of points in the energy direction of each spectral function. """
+        return self.kernel.Nw
 
     @cached_property
     def __get_reconstruct(self):
