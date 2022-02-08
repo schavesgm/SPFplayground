@@ -19,10 +19,10 @@ class ResidualBlock(nn.Module):
         self.layers = nn.Sequential(
             nn.Conv1d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
             nn.ReLU(inplace=True),
-            nn.BatchNorm1d(out_channels),
+            nn.BatchNorm1d(out_channels, track_running_stats=False),
             nn.Dropout(0.1),
             nn.Conv1d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.BatchNorm1d(out_channels),
+            nn.BatchNorm1d(out_channels, track_running_stats=False),
         )
 
         # Save the downsample method and the stride
@@ -53,7 +53,7 @@ def get_reslayer(num_layers: int, in_channels: int, out_channels: int, stride: i
     if stride != 1 or in_channels != out_channels:
         downsample = nn.Sequential(
             nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=stride),
-            nn.BatchNorm1d(out_channels)
+            nn.BatchNorm1d(out_channels, track_running_stats=False),
         )
 
     # List that will contain all the layers
@@ -74,7 +74,7 @@ class ResidualNet(BaseModel):
 
         # Unflatten the input data and batch normalise it
         self.augment = nn.Sequential(
-            nn.BatchNorm1d(input_size),
+            nn.BatchNorm1d(input_size, track_running_stats=False),
             nn.Unflatten(1, (1, input_size)),
         )
 
@@ -82,7 +82,7 @@ class ResidualNet(BaseModel):
         self.first_block = nn.Sequential(
             nn.Conv1d(1, 64, kernel_size=7, stride=2, padding=3, bias=False),
             nn.ReLU(inplace=True),
-            nn.BatchNorm1d(64),
+            nn.BatchNorm1d(64, track_running_stats=False),
             nn.Dropout(0.1),
             nn.AvgPool1d(kernel_size=3, stride=2, padding=1)
         )
