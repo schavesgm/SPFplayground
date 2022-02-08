@@ -62,11 +62,11 @@ if __name__ == '__main__':
     # Generate the factory
     dataset = SPFactory([gauss for _ in range(args.Np)], kernel)
 
-    # Generate the data: Increased from 64 to 128, check performance
+    # Generate the dataset
     dataset.generate_data(args.Nb, args.Ns, use_GPU=True)
 
     # Wrap the dataset around a loader function
-    loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=True)
+    loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=False)
 
     # Generate a model to train
     model = ResidualNet(dataset.Nt, dataset.Ns, 'ResNet').cuda()
@@ -76,40 +76,32 @@ if __name__ == '__main__':
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5, cooldown=5)
 
     # Get some random examples
-    ex = torch.randint(0, dataset.Nb, (4,))
+    examples = torch.randint(0, 1024, (4,))
 
     # Save all epoch mean losses
     epoch_mean_losses = []
 
     # Folder where the run data will be stored
     run_path = Path(f'./runs/{model.name}/p{args.Np}_s{args.Ns}_b{args.Nb}')
-
-    # Make the path if it does not exist
     run_path.mkdir(parents=True, exist_ok=True)
 
     # Train the model for different number of epochs
     for epoch in range(args.epochs):
 
-        # Make the model trainable
+        # Set the model in training mode
         model.train()
 
         # Track the total loss and save the initial time
         epoch_loss, start = [], time.time()
 
-        # Iterate through all minibatches
+        # Iterate for all minibatches
         for nb, (C_data, L_data) in enumerate(loader):
 
             # Set the gradients to zero
             optim.zero_grad()
 
-            # Normalise the input and label data and move to the GPU
-            C_data, L_data = C_data.cuda().log(), L_data.cuda()
-
-            # Compute the prediction of the network
-            L_pred = model(C_data)
-
-            # Compute the loss functions
-            loss = (L_pred - L_data).pow(2).mean()
+            # Compute the loss function
+            loss = (model(C_data.cuda().log()) - L_data.cuda()).pow(2).mean()
 
             # Append the loss to the control tensor
             epoch_loss += [loss]
@@ -117,21 +109,26 @@ if __name__ == '__main__':
             # Backward pass and optimiser step
             loss.backward(), optim.step()
 
+        # Transform the epoch loss tracker into a tensor
         epoch_loss = torch.tensor(epoch_loss)
+        epoch_mean_losses += [epoch_loss.mean()]
+
+        # Learning rate scheduler step
         sched.step(epoch_loss.mean())
+
+        # Set the model in evaluation mode
+        model.eval()
 
         # Get the learning rate
         lr = optim.param_groups[0]['lr']
 
+        # Log some data to the console
         print(
             f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, '
             f'lr={lr:.6f}, eta={time.time() - start} '
             f'-- {run_path.name}',
             flush=True
         )
-
-        # Append the epoch mean losses
-        epoch_mean_losses += [epoch_loss.mean()]
 
         if (epoch + 1) % 10 == 0:
 
@@ -141,15 +138,24 @@ if __name__ == '__main__':
                 # Set the network in evaluation mode
                 model.eval()
 
+                # Save the total eval loss
+                eval_loss = []
+
+                for C_data, L_data in loader:
+                    loss = (model(C_data.cuda().log()) - L_data.cuda()).pow(2).mean()
+                    eval_loss += [loss.item()]
+
+                print(f' -- Evaluation: {torch.tensor(eval_loss).mean().item()}')
+
                 # Generate a figure to plot the data
                 fig = plt.figure(figsize=(10, 8))
 
                 # Add several axis to the figure
-                axis = [fig.add_subplot(ex.shape[0], 2, i) for i in range(1, 2 * ex.shape[0] + 1)]
+                axis = [fig.add_subplot(examples.shape[0], 2, i) for i in range(1, 2 * examples.shape[0] + 1)]
                 for ax in axis: ax.grid('#fefefe', alpha=0.6)
 
                 # Get the label coefficients and the correlation functions
-                L_data, C_data = dataset.L[ex, :], dataset.C[ex, :]
+                L_data, C_data = dataset.L[:1024, :], dataset.C[:1024, :]
 
                 # Compute the predicted coefficients from the scaled correlation functions
                 L_pred = model(C_data.cuda().log()).cpu()
@@ -158,7 +164,7 @@ if __name__ == '__main__':
                 data, pred = dataset.reconstruct(L_data), dataset.reconstruct(L_pred)
 
                 # Iterate through all the examples to plot them
-                for e in range(ex.shape[0]):
+                for e, ex in enumerate(examples):
 
                     # Select the corresponding axis
                     aL, aR, = axis[2 * e: 2 * (e + 1)]
@@ -168,12 +174,12 @@ if __name__ == '__main__':
                     aR.set(xlabel=r'$\omega$', ylabel=r'$\rho(\omega)$')
 
                     # Plot the coefficients
-                    aL.plot(L_data[e, :], color='blue')
-                    aL.plot(L_pred[e, :], color='red')
+                    aL.plot(L_data[ex, :], color='blue')
+                    aL.plot(L_pred[ex, :], color='red')
 
                     # Plot the spectral functions
-                    aR.plot(kernel.omega, data.R[e, :], color='blue')
-                    aR.plot(kernel.omega, pred.R[e, :], color='red')
+                    aR.plot(kernel.omega, data.R[ex, :], color='blue')
+                    aR.plot(kernel.omega, pred.R[ex, :], color='red')
 
                 # Make the plot nicer
                 fig.tight_layout()
@@ -197,4 +203,5 @@ if __name__ == '__main__':
     axis.set(xlabel='epoch', ylabel='loss')
     axis.grid('#fefefe', alpha=0.6)
     axis.plot(epoch_mean_losses, color='navy')
+    fig.tight_layout()
     fig.savefig(run_path / 'params' / 'loss.pdf')
