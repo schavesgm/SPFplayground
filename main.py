@@ -1,7 +1,7 @@
 # -- Import some built-in modules
-import os
 import time
 import argparse
+from functools import partial
 from pathlib import Path
 
 # -- Import some third-party modules
@@ -19,6 +19,9 @@ from recan.utils   import test_model
 
 # -- Use this plotting backend to avoid memory leaks
 matplotlib.use('Agg')
+
+# -- Set the print function to use flush by default -- Good on server
+print = partial(print, flush=True)
 
 def parse_arguments() -> argparse.Namespace:
     """ Parse some command line arguments. """
@@ -65,7 +68,7 @@ if __name__ == '__main__':
 
     # Generate the dataset
     dataset.generate_data(args.Nb, args.Ns, use_GPU=True)
-    print(f' -- Dataset p{args.Np}_s{args.Ns}_b{args.Nb} correctly generated', flush=True)
+    print(f' -- Dataset p{args.Np}_s{args.Ns}_b{args.Nb} correctly generated')
 
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=False)
@@ -122,12 +125,7 @@ if __name__ == '__main__':
         lr = optim.param_groups[0]['lr']
 
         # Log some data to the console
-        print(
-            f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, '
-            f'lr={lr:.6f}, eta={time.time() - start} '
-            f'-- {run_path.name}',
-            flush=True
-        )
+        print(f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, ' f'lr={lr:.6f}, eta={time.time() - start} ' f'-- {run_path.name}')
 
         # Evaluate training every some epochs
         if (epoch + 1) % 10 == 0:
@@ -139,7 +137,7 @@ if __name__ == '__main__':
                 test_results = test_model(model, dataset.C.log(), dataset.L, examples)
 
                 # Print the evaluation data in the console
-                print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}', flush=True)
+                print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}')
 
                 # Generate a figure to plot the data
                 fig = plt.figure(figsize=(10, 8))
