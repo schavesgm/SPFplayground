@@ -3,6 +3,7 @@ import os
 import time
 import argparse
 from pathlib import Path
+from dataclasses import dataclass, field
 
 # -- Import some third-party modules
 import torch
@@ -14,7 +15,9 @@ from recan.factory import Parameter
 from recan.factory import GaussianAnsatz
 from recan.factory import NRQCDKernel
 from recan.factory import SPFactory
-from recan.models import ResidualNet
+from recan.models  import ResidualNet
+from recan.models  import BaseModel
+from recan.utils   import test_model
 
 # -- Use this plotting backend to avoid memory leaks
 matplotlib.use('Agg')
@@ -71,12 +74,12 @@ if __name__ == '__main__':
     # Generate a model to train
     model = ResidualNet(dataset.Nt, dataset.Ns, 'ResNet').cuda()
 
+    # Get some random examples
+    examples = torch.randint(0, dataset.Nb, (4,))
+
     # Optimiser and learning rate scheduler
     optim = torch.optim.Adam(model.parameters(), lr=0.01)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5, cooldown=5)
-
-    # Get some random examples
-    examples = torch.randint(0, 1024, (4,))
 
     # Save all epoch mean losses
     epoch_mean_losses = []
@@ -88,13 +91,13 @@ if __name__ == '__main__':
     # Train the model for different number of epochs
     for epoch in range(args.epochs):
 
-        # Set the model in training mode
+        # Ensure the model is in training mode
         model.train()
 
         # Track the total loss and save the initial time
         epoch_loss, start = [], time.time()
 
-        # Iterate for all minibatches
+        # Iterate for all minibatches in training
         for nb, (C_data, L_data) in enumerate(loader):
 
             # Set the gradients to zero
@@ -116,9 +119,6 @@ if __name__ == '__main__':
         # Learning rate scheduler step
         sched.step(epoch_loss.mean())
 
-        # Set the model in evaluation mode
-        model.eval()
-
         # Get the learning rate
         lr = optim.param_groups[0]['lr']
 
@@ -130,22 +130,17 @@ if __name__ == '__main__':
             flush=True
         )
 
+        # Evaluate training every some epochs
         if (epoch + 1) % 10 == 0:
 
             # Generate the prediction of the model
             with torch.no_grad():
 
-                # Set the network in evaluation mode
-                model.eval()
+                # Get the test results in the training set
+                test_results = test_model(model, dataset.C.log(), dataset.L, examples)
 
-                # Save the total eval loss
-                eval_loss = []
-
-                for C_data, L_data in loader:
-                    loss = (model(C_data.cuda().log()) - L_data.cuda()).pow(2).mean()
-                    eval_loss += [loss.item()]
-
-                print(f' -- Evaluation: {torch.tensor(eval_loss).mean().item()}')
+                # Print the evaluation data in the console
+                print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}')
 
                 # Generate a figure to plot the data
                 fig = plt.figure(figsize=(10, 8))
@@ -154,17 +149,12 @@ if __name__ == '__main__':
                 axis = [fig.add_subplot(examples.shape[0], 2, i) for i in range(1, 2 * examples.shape[0] + 1)]
                 for ax in axis: ax.grid('#fefefe', alpha=0.6)
 
-                # Get the label coefficients and the correlation functions
-                L_data, C_data = dataset.L[:1024, :], dataset.C[:1024, :]
-
-                # Compute the predicted coefficients from the scaled correlation functions
-                L_pred = model(C_data.cuda().log()).cpu()
-
                 # Generate the label and the predicted objects
-                data, pred = dataset.reconstruct(L_data), dataset.reconstruct(L_pred)
+                data_obj = dataset.reconstruct(test_results.label_plotting)
+                pred_obj = dataset.reconstruct(test_results.preds_plotting)
 
                 # Iterate through all the examples to plot them
-                for e, ex in enumerate(examples):
+                for e in range(examples.shape[0]):
 
                     # Select the corresponding axis
                     aL, aR, = axis[2 * e: 2 * (e + 1)]
@@ -174,12 +164,12 @@ if __name__ == '__main__':
                     aR.set(xlabel=r'$\omega$', ylabel=r'$\rho(\omega)$')
 
                     # Plot the coefficients
-                    aL.plot(L_data[ex, :], color='blue')
-                    aL.plot(L_pred[ex, :], color='red')
+                    aL.plot(data_obj.L[e, :], color='blue')
+                    aL.plot(pred_obj.L[e, :], color='red')
 
                     # Plot the spectral functions
-                    aR.plot(kernel.omega, data.R[ex, :], color='blue')
-                    aR.plot(kernel.omega, pred.R[ex, :], color='red')
+                    aR.plot(kernel.omega, data_obj.R[e, :], color='blue')
+                    aR.plot(kernel.omega, pred_obj.R[e, :], color='red')
 
                 # Make the plot nicer
                 fig.tight_layout()
