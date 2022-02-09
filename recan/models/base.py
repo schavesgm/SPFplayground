@@ -54,6 +54,11 @@ class BaseModel(nn.Module):
     def num_params(self) -> int:
         """ Get the number of parameters in the network. """
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    @property
+    def device(self) -> torch.device:
+        """ Get the device in which the model parameters are stored. """
+        return next(self.parameters()).device
     # -- }}}
     
 if __name__ == '__main__':
