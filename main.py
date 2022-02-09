@@ -64,6 +64,7 @@ if __name__ == '__main__':
 
     # Generate the dataset
     dataset.generate_data(args.Nb, args.Ns, use_GPU=True)
+    print(f' -- Dataset p{args.Np}_s{args.Ns}_b{args.Nb} correctly generated', flush=True)
 
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=False)
@@ -145,7 +146,7 @@ if __name__ == '__main__':
                     loss = (model(C_data.cuda().log()) - L_data.cuda()).pow(2).mean()
                     eval_loss += [loss.item()]
 
-                print(f' -- Evaluation: {torch.tensor(eval_loss).mean().item()}')
+                print(f' -- Evaluation: {torch.tensor(eval_loss).mean().item()}: {run_path.name}', flush=True)
 
                 # Generate a figure to plot the data
                 fig = plt.figure(figsize=(10, 8))
