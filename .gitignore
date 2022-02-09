@@ -6,6 +6,6 @@ runs
 figures
 
 # Ignore some of the server files
-run.sh
+send.sh
 stdout.log
 stderr.log
