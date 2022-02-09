@@ -3,7 +3,6 @@ import os
 import time
 import argparse
 from pathlib import Path
-from dataclasses import dataclass, field
 
 # -- Import some third-party modules
 import torch
@@ -16,7 +15,6 @@ from recan.factory import GaussianAnsatz
 from recan.factory import NRQCDKernel
 from recan.factory import SPFactory
 from recan.models  import ResidualNet
-from recan.models  import BaseModel
 from recan.utils   import test_model
 
 # -- Use this plotting backend to avoid memory leaks
@@ -67,6 +65,7 @@ if __name__ == '__main__':
 
     # Generate the dataset
     dataset.generate_data(args.Nb, args.Ns, use_GPU=True)
+    print(f' -- Dataset p{args.Np}_s{args.Ns}_b{args.Nb} correctly generated', flush=True)
 
     # Wrap the dataset around a loader function
     loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=False)
@@ -140,7 +139,7 @@ if __name__ == '__main__':
                 test_results = test_model(model, dataset.C.log(), dataset.L, examples)
 
                 # Print the evaluation data in the console
-                print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}')
+                print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}', flush=True)
 
                 # Generate a figure to plot the data
                 fig = plt.figure(figsize=(10, 8))
