@@ -34,6 +34,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument('-Ns', type=int, help='Number of coefficients in the expansion')
     parser.add_argument('-Np', type=int, help='Number of peaks used in each spectral function')
     parser.add_argument('--epochs', type=int, default=500, help='Number of epochs used at training')
+    parser.add_argument('--batch_size', type=int, default=256, help='Number of examples in each minibatch')
     parser.add_argument('--server', action='store_true', help='Flag that states that we are running on server')
     parser.add_argument('--seed', type=int, default=916650397, help='Seed used in the calculation')
 
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     print(f' -- Dataset p{args.Np}_s{args.Ns}_b{args.Nb} correctly generated')
 
     # Wrap the dataset around a loader function
-    loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=False)
+    loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
 
     # Generate a model to train
     model = ResidualNet(dataset.Nt, dataset.Ns, 'ResNet').cuda()
@@ -128,7 +129,7 @@ if __name__ == '__main__':
         sched.step(epoch_loss.mean())
 
         # Log some data to the console
-        print(f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, ' f'lr={lr:.6f}, eta={time.time() - start} ' f'-- {run_path.name}')
+        print(f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, ' f'lr={lr:.6f}, eta={time.time() - start:.3f} ' f'-- {run_path.name}')
 
         # Evaluate training every some epochs
         if (epoch + 1) % 10 == 0:
@@ -137,7 +138,7 @@ if __name__ == '__main__':
             with torch.no_grad():
 
                 # Get the test results in the training set
-                test_results = test_model(model, dataset.C.log(), dataset.L, examples)
+                test_results = test_model(model, dataset.C.log(), dataset.L, examples, args.batch_size)
 
                 # Print the evaluation data in the console
                 print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}')
