@@ -36,6 +36,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument('--epochs', type=int, default=500, help='Number of epochs used at training')
     parser.add_argument('--batch_size', type=int, default=256, help='Number of examples in each minibatch')
     parser.add_argument('--server', action='store_true', help='Flag that states that we are running on server')
+    parser.add_argument('--not_GPU', action='store_false', help='Do not use the GPU to compute the SVD decomposition')
     parser.add_argument('--seed', type=int, default=916650397, help='Seed used in the calculation')
 
     # Parse the command line arguments
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     dataset = SPFactory([gauss for _ in range(args.Np)], kernel)
 
     # Generate the dataset
-    dataset.generate_data(args.Nb, args.Ns, use_GPU=True)
+    dataset.generate_data(args.Nb, args.Ns, use_GPU=args.not_GPU)
     print(f' -- Dataset p{args.Np}_s{args.Ns}_b{args.Nb} correctly generated')
 
     # Wrap the dataset around a loader function
