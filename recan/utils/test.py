@@ -47,14 +47,14 @@ class TestResults:
     label_plotting: torch.Tensor = torch.tensor([])
     preds_plotting: torch.Tensor = torch.tensor([])
 
-def test_model(model: BaseModel, input: torch.Tensor, label: torch.Tensor, plot_examples: torch.Tensor) -> TestResults:
+def test_model(model: BaseModel, input: torch.Tensor, label: torch.Tensor, plot_examples: torch.Tensor, batch_size: int) -> TestResults:
     """ Test a model on a set of inputs and labels. """
 
     # Set the model in evaluation mode
     model.eval()
 
     # Generate a DataLoader on input and label
-    loader = torch.utils.data.DataLoader(Dataset(input, label), batch_size=256, shuffle=False)
+    loader = torch.utils.data.DataLoader(Dataset(input, label), batch_size=batch_size, shuffle=False)
 
     # Generate a TestResults object to save the data
     test_results = TestResults(plot_examples=plot_examples)
