@@ -83,8 +83,8 @@ if __name__ == '__main__':
     optim = torch.optim.Adam(model.parameters(), lr=0.01)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5, cooldown=5)
 
-    # Save all epoch mean losses
-    epoch_mean_losses = []
+    # Track some training parameters
+    training_track = {'loss': [], 'lr': []}
 
     # Folder where the run data will be stored
     run_path = Path(f'./runs/{model.name}/p{args.Np}_s{args.Ns}_b{args.Nb}')
@@ -116,13 +116,16 @@ if __name__ == '__main__':
 
         # Transform the epoch loss tracker into a tensor
         epoch_loss = torch.tensor(epoch_loss)
-        epoch_mean_losses += [epoch_loss.mean()]
-
-        # Learning rate scheduler step
-        sched.step(epoch_loss.mean())
 
         # Get the learning rate
         lr = optim.param_groups[0]['lr']
+
+        # Track some parameters
+        training_track['loss'] += [epoch_loss.mean().item()]
+        training_track['lr']   += [lr]
+
+        # Learning rate scheduler step
+        sched.step(epoch_loss.mean())
 
         # Log some data to the console
         print(f'Epoch {epoch + 1}: loss={epoch_loss.mean():.6f}, ' f'lr={lr:.6f}, eta={time.time() - start} ' f'-- {run_path.name}')
@@ -180,7 +183,7 @@ if __name__ == '__main__':
 
     # Save the epoch mean loss and the model parameters in a file
     param_path = (run_path / 'params').mkdir(parents=True, exist_ok=True)
-    torch.save({'loss': epoch_mean_losses, 'model': model.state_dict()}, run_path / 'params' / 'params.pt')
+    torch.save(training_track | {'model': model.state_dict()}, run_path / 'params' / 'params.pt')
 
     # Plot the mean losses into a figure
     fig  = plt.figure(figsize=(6, 4))
@@ -189,6 +192,6 @@ if __name__ == '__main__':
     # Set some properties in the axis
     axis.set(xlabel='epoch', ylabel='loss')
     axis.grid('#fefefe', alpha=0.6)
-    axis.plot(epoch_mean_losses, color='navy')
+    axis.plot(training_track['loss'], color='navy')
     fig.tight_layout()
     fig.savefig(run_path / 'params' / 'loss.pdf')
