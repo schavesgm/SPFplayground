@@ -142,7 +142,7 @@ if __name__ == '__main__':
                 test_results = test_model(model, dataset.C.log(), dataset.L, examples, args.batch_size)
 
                 # Print the evaluation data in the console
-                print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}')
+                print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}: {run_path.name}')
 
                 # Generate a figure to plot the data
                 fig = plt.figure(figsize=(10, 8))
