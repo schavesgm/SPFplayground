@@ -62,7 +62,7 @@ def test_model(model: BaseModel, input: torch.Tensor, label: torch.Tensor, plot_
     # Buffers that will hold the plotting examples
     input_plotting, label_plotting, preds_plotting = [], [], []
 
-    # Iterate through all datas
+    # Iterate through all data
     for mb, (input_mb, label_mb) in enumerate(loader):
 
         # Check if any of the examples are in the region

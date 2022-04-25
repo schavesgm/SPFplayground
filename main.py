@@ -57,7 +57,7 @@ if __name__ == '__main__':
     # Generate the parameters
     param_A = Parameter('A', 0.1000, 1.0000)
     param_W = Parameter('W', 0.0500, 0.1000)
-    param_M = Parameter('M', 0.1000, 3.5000)
+    param_M = Parameter('M', 0.1000, 5.5000)
 
     # Generate the gaussian ansatzs
     gauss = GaussianAnsatz(param_A, param_M, param_W)
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5, cooldown=5)
 
     # Track some training parameters
-    training_track = {'loss': [], 'lr': []}
+    training_track = {'loss': [], 'lr': [], 'plots': {}}
 
     # Folder where the run data will be stored
     run_path = Path(f'./runs/{model.name}/p{args.Np}_s{args.Ns}_b{args.Nb}')
@@ -175,6 +175,12 @@ if __name__ == '__main__':
 
                 # Make the plot nicer
                 fig.tight_layout()
+
+                # Save the plot data in the tracking dictionary
+                training_track['plots'][epoch + 1] = {
+                    'L_data': data_obj.L, 'R_data': data_obj.R,
+                    'L_pred': pred_obj.L, 'R_pred': pred_obj.R,
+                }
 
                 # Make a folder to store the figures
                 (run_path / 'figures').mkdir(parents=True, exist_ok=True)
