@@ -86,7 +86,7 @@ if __name__ == '__main__':
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5, cooldown=5)
 
     # Track some training parameters
-    training_track = {'loss': [], 'lr': [], 'plots': {}}
+    training_track = {'loss': [], 'lr': [], 'plots': {}, 'omega': kernel.omega}
 
     # Folder where the run data will be stored
     run_path = Path(f'./runs/{model.name}/p{args.Np}_s{args.Ns}_b{args.Nb}')
