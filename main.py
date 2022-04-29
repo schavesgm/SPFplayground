@@ -8,6 +8,7 @@ from pathlib import Path
 import torch
 import matplotlib
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import Normalizer
 
 # -- Import some user-defined modules
 from recan.factory import Parameter
@@ -107,8 +108,13 @@ if __name__ == '__main__':
             # Set the gradients to zero
             optim.zero_grad()
 
+            # Scale the data
+            C_data = torch.from_numpy(Normalizer().transform(C_data)).float()
+            L_data = torch.from_numpy(Normalizer().transform(L_data)).float()
+
             # Compute the loss function
-            loss = (model(C_data.cuda().log()) - L_data.cuda()).pow(2).mean()
+            # loss = (model(C_data.cuda().log()) - L_data.cuda()).pow(2).mean()
+            loss = (model(C_data.cuda()) - L_data.cuda()).pow(2).mean()
 
             # Append the loss to the control tensor
             epoch_loss += [loss]
@@ -139,7 +145,7 @@ if __name__ == '__main__':
             with torch.no_grad():
 
                 # Get the test results in the training set
-                test_results = test_model(model, dataset.C.log(), dataset.L, examples, args.batch_size)
+                test_results = test_model(model, dataset.C, dataset.L, examples, args.batch_size)
 
                 # Print the evaluation data in the console
                 print(f' -- Evaluation: {torch.tensor(test_results.losses).mean().item()}: {run_path.name}')

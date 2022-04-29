@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 # -- Import third-party modules
 import torch
+from sklearn.preprocessing import Normalizer
 
 # -- Import user-defined modules
 from ..models import BaseModel
@@ -67,6 +68,10 @@ def test_model(model: BaseModel, input: torch.Tensor, label: torch.Tensor, plot_
 
         # Check if any of the examples are in the region
         ex_present = (mb * loader.batch_size <= plot_examples) * (plot_examples < (mb + 1) * loader.batch_size)
+
+        # Normalise the inputs and labels 
+        input_mb = torch.from_numpy(Normalizer().transform(input_mb)).float()
+        label_mb = torch.from_numpy(Normalizer().transform(label_mb)).float()
 
         # Get all examples that are inside bounds and bound them to batch_size
         inside_bounds = plot_examples[ex_present] - mb * loader.batch_size
