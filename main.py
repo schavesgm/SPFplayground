@@ -113,7 +113,6 @@ if __name__ == '__main__':
             L_data = torch.from_numpy(Normalizer().transform(L_data)).float()
 
             # Compute the loss function
-            # loss = (model(C_data.cuda().log()) - L_data.cuda()).pow(2).mean()
             loss = (model(C_data.cuda()) - L_data.cuda()).pow(2).mean()
 
             # Append the loss to the control tensor
