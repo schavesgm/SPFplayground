@@ -83,7 +83,7 @@ if __name__ == '__main__':
     examples = torch.randint(0, dataset.Nb, (4,))
 
     # Optimiser and learning rate scheduler
-    optim = torch.optim.Adam(model.parameters(), lr=0.01)
+    optim = torch.optim.AdamW(model.parameters(), lr=0.01)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, patience=15, factor=0.5, min_lr=1e-5, cooldown=5)
 
     # Track some training parameters
@@ -112,8 +112,8 @@ if __name__ == '__main__':
             C_data = torch.from_numpy(Normalizer().transform(C_data)).float()
             L_data = torch.from_numpy(Normalizer().transform(L_data)).float()
 
-            # Compute the loss function
-            loss = (model(C_data.cuda()) - L_data.cuda()).pow(2).mean()
+            # Compute the loss function on the required values
+            loss = (model(C_data.cuda()) - L_data.cuda()).pow(2).sum(dim=1).mean()
 
             # Append the loss to the control tensor
             epoch_loss += [loss]
@@ -203,7 +203,7 @@ if __name__ == '__main__':
     axis = fig.add_subplot()
 
     # Set some properties in the axis
-    axis.set(xlabel='epoch', ylabel='loss')
+    axis.set(xlabel='epoch', ylabel='loss', yscale='log')
     axis.grid('#fefefe', alpha=0.6)
     axis.plot(training_track['loss'], color='navy')
     fig.tight_layout()

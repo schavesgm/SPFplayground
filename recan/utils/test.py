@@ -80,7 +80,7 @@ def test_model(model: BaseModel, input: torch.Tensor, label: torch.Tensor, plot_
         preds_mb = model(input_mb.to(model.device))
 
         # Compute the loss function in this minibatch -> MSError for now
-        loss = (label_mb.to(model.device) - preds_mb).pow(2).mean()
+        loss = (label_mb.to(model.device) - preds_mb).pow(2).sum(dim=1).mean()
 
         # Append the loss to the test_results
         test_results.losses += [loss.item()]
