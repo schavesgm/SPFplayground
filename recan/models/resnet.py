@@ -65,7 +65,7 @@ def get_reslayer(num_layers: int, in_channels: int, out_channels: int, stride: i
     return nn.Sequential(*layers)
 
 class ResidualNet(BaseModel):
-    """ Basic implementation of a 18 layer Residual Network. """
+    """ Basic implementation of a 34 layer Residual Network. """
 
     def __init__(self, input_size: int, output_size: int, name: str = ''):
 
@@ -90,7 +90,7 @@ class ResidualNet(BaseModel):
         # Generate the residual network architecture
         self.resnet_layers = nn.Sequential(
             get_reslayer(2, 64, 64, 1),
-            get_reslayer(2, 64, 128, 2),
+            get_reslayer(4, 64, 128, 2),
             get_reslayer(6, 128, 256, 2),
             get_reslayer(3, 256, 512, 2),
         )
